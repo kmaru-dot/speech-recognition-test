@@ -43,7 +43,7 @@
     startBtn.disabled=true;
   }
   function setStatus(s){statusEl.textContent=s;}
-  startBtn.addEventListener('click',function(){
+  function startRecognition(){
     const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!Recognition){setStatus('このブラウザは音声認識に対応していません。Chromeの最新版でお試しください。');return;}
     try{
@@ -73,7 +73,13 @@
       recognition.onend=function(){startBtn.disabled=false;};
       recognition.start();
     }catch(e){setStatus('開始できませんでした：'+(e&&e.name?e.name:'Error')+' '+(e&&e.message?e.message:''));startBtn.disabled=false;}
-  });
+  }
+  startBtn.addEventListener('click', startRecognition);
+  // 起動情報が正しければ自動開始を試す。拒否された場合は手動ボタンで再試行。
+  if(target && requestId && allowedOrigin){
+    setStatus('音声認識を自動で開始しています…');
+    window.setTimeout(function(){ startRecognition(); }, 250);
+  }
   sendBtn.addEventListener('click',function(){
     if(!transcript||!window.opener||window.opener.closed){setStatus('学習アプリの画面が見つかりません。学習アプリから開き直してください。');return;}
     if(!allowedOrigin){setStatus('返却先の確認に失敗しました。学習アプリから開き直してください。');return;}
