@@ -41,6 +41,13 @@ startBtn.addEventListener('click',()=>{
   recognition.start();show('音声認識を要求しています…');
  }catch(e){show('開始例外：'+e.name+' / '+e.message);startBtn.disabled=false;stopBtn.disabled=true;}
 });
+
+ navigator.mediaDevices.getUserMedia({ audio: true })
+  .then(stream => {
+    console.log("マイク取得成功");
+    stream.getTracks().forEach(track => track.stop());
+  })
+  .catch(error => console.log("マイク取得失敗:", error.name, error.message));
 stopBtn.addEventListener('click',()=>{if(recognition)recognition.stop();});
 </script>
 </body>
