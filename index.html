@@ -1,54 +1,25 @@
 <!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>英語音声認識テスト</title>
-<style>
-body{font-family:system-ui,sans-serif;max-width:640px;margin:24px auto;padding:0 16px;line-height:1.6;color:#222}button{font-size:16px;padding:12px 16px;margin:6px 4px 6px 0;border:0;border-radius:8px;background:#155eef;color:#fff}button:disabled{opacity:.5}#status{padding:12px;background:#f2f4f7;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere}.small{color:#555;font-size:14px}
-</style>
-</head>
-<body>
-<h1>英語音声認識テスト</h1>
-<p>これはGASアプリとは別のページで、ブラウザの英語音声認識が利用できるかを確認するテストです。</p>
-<label for="target">読み上げる英文（任意）</label><br>
-<input id="target" value="How are you today?" style="box-sizing:border-box;width:100%;font-size:18px;padding:10px;margin:8px 0">
-<div><button id="speak">お手本を聞く</button><button id="start">マイクで認識</button><button id="stop" disabled>停止</button></div>
-<div id="status">準備完了。まず「マイクで認識」を押してください。</div>
-<p class="small">注意：マイク利用はボタンを押したときだけ開始します。音声や認識結果はこのテストページ内で表示し、サーバーには送信しません。</p>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>英語音声認識</title>
+<style>body{font-family:system-ui,sans-serif;max-width:680px;margin:24px auto;padding:0 16px;color:#172033}h1{font-size:26px}input{box-sizing:border-box;width:100%;font-size:18px;padding:12px;margin:8px 0 14px}button{font-size:16px;font-weight:700;padding:12px 16px;border:0;border-radius:9px;background:#1764ed;color:white;margin:0 6px 8px 0}button:disabled{opacity:.5}#status{white-space:pre-wrap;background:#f1f3f6;border-radius:10px;padding:14px;margin-top:12px;line-height:1.6}.note{font-size:13px;color:#555}</style></head>
+<body><h1>英語音声認識</h1><p>「マイクで認識」を押してから、表示された英文を声に出してください。</p>
+<label for="target">読み上げる英文</label><input id="target" value="How are you today?"><div><button id="listen">お手本を聞く</button><button id="recognize">マイクで認識</button><button id="stop" disabled>停止</button></div><div id="status">準備完了。認識開始はボタンを押したときだけ行います。</div><p class="note">このページは音声を保存・送信するコードを含みません。ブラウザのWeb Speech API自体が外部認識サービスを利用する場合はあります。認識結果は、正規のGASアプリから開かれた場合のみ opener に返します。</p>
 <script>
-const statusEl=document.getElementById('status');
-const startBtn=document.getElementById('start');
-const stopBtn=document.getElementById('stop');
-let recognition=null;
-function show(s){statusEl.textContent=s;}
-document.getElementById('speak').addEventListener('click',()=>{
- const text=document.getElementById('target').value.trim();
- if(!text){show('英文を入力してください。');return;}
- if(!('speechSynthesis' in window)){show('このブラウザは音声読み上げに対応していません。');return;}
- speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='en-US';u.onstart=()=>show('お手本を再生中…');u.onend=()=>show('お手本の再生が完了しました。');u.onerror=e=>show('読み上げエラー：'+e.error);speechSynthesis.speak(u);
-});
-startBtn.addEventListener('click',()=>{
- const R=window.SpeechRecognition||window.webkitSpeechRecognition;
- if(!R){show('SpeechRecognition APIに未対応です。');return;}
- try{
-  recognition=new R();recognition.lang='en-US';recognition.interimResults=false;recognition.maxAlternatives=3;
-  recognition.onstart=()=>{show('マイク開始成功。英語を話してください…');startBtn.disabled=true;stopBtn.disabled=false;};
-  recognition.onaudiostart=()=>show('音声入力を取得中です。英語を話してください…');
-  recognition.onresult=e=>{const alternatives=Array.from(e.results[0]).map(x=>x.transcript+' (信頼度 '+(typeof x.confidence==='number'?x.confidence.toFixed(2):'不明')+')');show('認識成功\n'+alternatives.join('\n'));};
-  recognition.onerror=e=>show('音声認識エラー：'+e.error+'\nsecureContext='+window.isSecureContext+'\norigin='+location.origin+'\niframe内='+(window.top!==window.self));
-  recognition.onend=()=>{startBtn.disabled=false;stopBtn.disabled=true;};
-  recognition.start();show('音声認識を要求しています…');
- }catch(e){show('開始例外：'+e.name+' / '+e.message);startBtn.disabled=false;stopBtn.disabled=true;}
-});
-
- navigator.mediaDevices.getUserMedia({ audio: true })
-  .then(stream => {
-    console.log("マイク取得成功");
-    stream.getTracks().forEach(track => track.stop());
-  })
-  .catch(error => console.log("マイク取得失敗:", error.name, error.message));
-stopBtn.addEventListener('click',()=>{if(recognition)recognition.stop();});
-</script>
-</body>
-</html>
+(function(){
+ const params=new URLSearchParams(location.search); const requestId=params.get('requestId')||''; const targetParam=params.get('target'); const target=document.getElementById('target'); const status=document.getElementById('status'); const listen=document.getElementById('listen'); const recognize=document.getElementById('recognize'); const stop=document.getElementById('stop');
+ if(targetParam) target.value=targetParam.slice(0,500);
+ let rec=null, sent=false;
+ function sendResult(payload){ if(sent)return; sent=true; if(window.opener && !window.opener.closed && requestId){ window.opener.postMessage(Object.assign({type:'ENGLISH_SPEECH_RESULT',requestId:requestId},payload),'*'); } }
+ listen.onclick=function(){ if(!window.speechSynthesis){status.textContent='このブラウザではお手本音声を再生できません。';return;} speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(target.value);u.lang='en-US';speechSynthesis.speak(u); };
+ recognize.onclick=function(){
+   const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+   if(!Recognition){status.textContent='このブラウザは音声認識に対応していません。';return;}
+   try{if(rec){try{rec.abort()}catch(e){}} rec=new Recognition();rec.lang='en-US';rec.interimResults=false;rec.maxAlternatives=3;recognize.disabled=true;stop.disabled=false;status.textContent='マイクに向かって英文を話してください…';
+    rec.onresult=function(e){const transcript=Array.from(e.results[0]).map(x=>x.transcript).join(' ');status.textContent='認識結果：'+transcript+'\nGASアプリへ結果を返しています。';sendResult({transcript:transcript});};
+    rec.onerror=function(e){status.textContent='音声認識エラー：'+(e.error||'unknown');sendResult({error:e.error||'unknown'});};
+    rec.onend=function(){recognize.disabled=false;stop.disabled=true;};rec.start();
+   }catch(e){recognize.disabled=false;stop.disabled=true;status.textContent='開始エラー：'+(e.name||'Error')+' '+(e.message||'');sendResult({error:(e.name||'Error')+': '+(e.message||'')});}
+ };
+ stop.onclick=function(){if(rec){try{rec.stop()}catch(e){}}};
+ if(!window.opener){status.textContent='単独テストモードです。GASアプリから開いた場合、認識結果を元の画面へ返します。';}
+})();
+</script></body></html>
