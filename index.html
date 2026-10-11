@@ -56,7 +56,12 @@
         transcript=Array.from(event.results[0]||[]).map(function(x){return x.transcript;}).join(' ').trim();
         resultEl.textContent=transcript||'音声を認識できませんでした。';
         sendBtn.disabled=!transcript;
-        setStatus(transcript?'認識できました。結果を学習アプリに返してください。':'音声を認識できませんでした。もう一度お試しください。');
+        if(transcript){
+          setStatus('認識できました。学習アプリに自動返却しています…');
+          sendResult();
+        }else{
+          setStatus('音声を認識できませんでした。もう一度お試しください。');
+        }
       };
       recognition.onerror=function(event){
         const code=event&&event.error?event.error:'unknown';
@@ -78,16 +83,21 @@
   // 起動情報が正しければ自動開始を試す。拒否された場合は手動ボタンで再試行。
   if(target && requestId && allowedOrigin){
     setStatus('音声認識を自動で開始しています…');
-    window.setTimeout(function(){ startRecognition(); }, 250);
+    startRecognition();
   }
-  sendBtn.addEventListener('click',function(){
-    if(!transcript||!window.opener||window.opener.closed){setStatus('学習アプリの画面が見つかりません。学習アプリから開き直してください。');return;}
+  let resultSent=false;
+  function sendResult(){
+    if(resultSent)return;
+    if(!transcript){setStatus('認識結果がありません。英文を読み上げてください。');return;}
+    if(!window.opener||window.opener.closed){setStatus('学習アプリの画面が見つかりません。学習アプリから開き直してください。');return;}
     if(!allowedOrigin){setStatus('返却先の確認に失敗しました。学習アプリから開き直してください。');return;}
+    resultSent=true;
     window.opener.postMessage({type:'ENGLISH_SPEECH_RESULT',requestId:requestId,transcript:transcript},returnOrigin);
     setStatus('結果を学習アプリに返しました。この画面を閉じます…');
     sendBtn.disabled=true;
-    setTimeout(function(){window.close();},400);
-  });
+    setTimeout(function(){window.close();},500);
+  }
+  sendBtn.addEventListener('click',sendResult);
   document.getElementById('close').addEventListener('click',function(){window.close();});
 })();
 </script>
