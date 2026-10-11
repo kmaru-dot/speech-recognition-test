@@ -37,7 +37,7 @@
   let transcript='';
   let recognition=null;
   targetEl.textContent=target||'学習アプリから英文が渡されていません。';
-  const allowedOrigin=(function(){try{const u=new URL(returnOrigin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname.endsWith('.script.googleusercontent.com')||u.hostname.endsWith('-script.googleusercontent.com'));}catch(e){return false;}})();
+  const allowedOrigin=(function(){try{const u=new URL(returnOrigin);const h=u.hostname;return u.protocol==='https:'&&(h==='script.google.com'||h==='script.googleusercontent.com'||h.endsWith('.script.googleusercontent.com')||h.endsWith('-script.googleusercontent.com'));}catch(e){return false;}})();
   if(!target||!requestId||!allowedOrigin){
     statusEl.textContent='起動情報を確認できません。学習アプリから開き直してください。';
     startBtn.disabled=true;
