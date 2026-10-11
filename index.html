@@ -85,17 +85,46 @@
     setStatus('音声認識を自動で開始しています…');
     startRecognition();
   }
-  let resultSent=false;
+  let resultSending=false;
   function sendResult(){
-    if(resultSent)return;
+    if(resultSending)return;
     if(!transcript){setStatus('認識結果がありません。英文を読み上げてください。');return;}
-    if(!window.opener||window.opener.closed){setStatus('学習アプリの画面が見つかりません。学習アプリから開き直してください。');return;}
+    if(!window.opener||window.opener.closed){setStatus('学習アプリの画面が見つかりません。学習アプリの画面を閉じずに開き直してください。');return;}
     if(!allowedOrigin){setStatus('返却先の確認に失敗しました。学習アプリから開き直してください。');return;}
-    resultSent=true;
-    window.opener.postMessage({type:'ENGLISH_SPEECH_RESULT',requestId:requestId,transcript:transcript},returnOrigin);
-    setStatus('結果を学習アプリに返しました。この画面を閉じます…');
+
+    resultSending=true;
     sendBtn.disabled=true;
-    setTimeout(function(){window.close();},500);
+    setStatus('認識結果を学習アプリへ送信しています…');
+
+    // postMessageは受信側の処理完了を返さないため、短時間に複数回送信する。
+    // GAS側はrequestIdとfinishedフラグで重複を無視する。
+    const payload={type:'ENGLISH_SPEECH_RESULT',requestId:requestId,transcript:transcript};
+    let attempts=0;
+    const sendAgain=function(){
+      if(!window.opener||window.opener.closed){
+        setStatus('学習アプリの画面が見つかりません。結果を返せませんでした。');
+        sendBtn.disabled=false;
+        resultSending=false;
+        return;
+      }
+      try{
+        window.opener.postMessage(payload,returnOrigin);
+        attempts++;
+        setStatus('学習アプリへ送信しました（確認中 '+attempts+'/4）…');
+      }catch(e){
+        setStatus('結果の送信に失敗しました。送信ボタンで再試行してください。');
+        sendBtn.disabled=false;
+        resultSending=false;
+        return;
+      }
+      if(attempts<4){
+        setTimeout(sendAgain,300);
+      }else{
+        setStatus('結果を送信しました。学習アプリ側に反映されているか確認してください。');
+        setTimeout(function(){window.close();},700);
+      }
+    };
+    sendAgain();
   }
   sendBtn.addEventListener('click',sendResult);
   document.getElementById('close').addEventListener('click',function(){window.close();});
